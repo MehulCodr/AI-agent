@@ -81,7 +81,7 @@ func TestAgentHasDefaultSafeTools(t *testing.T) {
 	agent := New(&fakeProvider{})
 
 	got := agent.Tools()
-	want := []string{"current_directory", "echo", "list_files"}
+	want := []string{"current_directory", "echo", "edit_file", "list_files", "read_file", "write_file"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("Tools() = %#v, want %#v", got, want)
 	}

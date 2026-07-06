@@ -70,6 +70,9 @@ func defaultToolRegistry() *tools.Registry {
 		tools.EchoTool{},
 		tools.CurrentDirectoryTool{},
 		tools.ListFilesTool{},
+		tools.ReadFileTool{},
+		tools.WriteFileTool{},
+		tools.EditFileTool{},
 	} {
 		_ = registry.Register(tool)
 	}

@@ -34,6 +34,10 @@ func (EditFileTool) Execute(ctx context.Context, input map[string]any) (string, 
 	if err != nil {
 		return "", err
 	}
+	apply, err := optionalBool(input, "apply", "edit_file")
+	if err != nil {
+		return "", err
+	}
 
 	safePath, err := safeProjectPath(path)
 	if err != nil {
@@ -53,10 +57,53 @@ func (EditFileTool) Execute(ctx context.Context, input map[string]any) (string, 
 		return "", fmt.Errorf("edit file %q: old text not found", path)
 	}
 
+	diff := editDiff(path, oldText, newText)
+	if !apply {
+		return diff, nil
+	}
+
 	updated := strings.Replace(content, oldText, newText, 1)
+	if err := writeBackup(safePath, data); err != nil {
+		return "", err
+	}
 	if err := os.WriteFile(safePath, []byte(updated), 0644); err != nil {
 		return "", fmt.Errorf("write file %q: %w", path, err)
 	}
 
-	return "file edited", nil
+	return diff, nil
+}
+
+func optionalBool(input map[string]any, key, toolName string) (bool, error) {
+	value, ok := input[key]
+	if !ok || value == nil {
+		return false, nil
+	}
+
+	typed, ok := value.(bool)
+	if !ok {
+		return false, fmt.Errorf("%s tool %s must be a boolean", toolName, key)
+	}
+
+	return typed, nil
+}
+
+func writeBackup(path string, content []byte) error {
+	backupPath := path + ".bak"
+	if err := ensureExistingTargetInsideProject(backupPath); err != nil {
+		return err
+	}
+
+	existing, err := os.ReadFile(backupPath)
+	if err == nil && string(existing) == string(content) {
+		return nil
+	}
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("read backup %q: %w", backupPath, err)
+	}
+
+	if err := os.WriteFile(backupPath, content, 0644); err != nil {
+		return fmt.Errorf("write backup %q: %w", backupPath, err)
+	}
+
+	return nil
 }

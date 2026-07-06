@@ -52,9 +52,10 @@ func TestEditFileToolEditsFirstMatch(t *testing.T) {
 		}
 
 		_, err := EditFileTool{}.Execute(context.Background(), map[string]any{
-			"path": "notes.txt",
-			"old":  "two",
-			"new":  "three",
+			"path":  "notes.txt",
+			"old":   "two",
+			"new":   "three",
+			"apply": true,
 		})
 		if err != nil {
 			t.Fatalf("Execute returned error: %v", err)

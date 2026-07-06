@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/MehulCodr/AI-agent/internal/agent"
+	projectcontext "github.com/MehulCodr/AI-agent/internal/context"
 )
 
 const (
@@ -34,6 +35,8 @@ func Run(args []string) error {
 			return err
 		}
 		return StartREPL(context.Background(), os.Stdin, os.Stdout, agent)
+	case "context":
+		return runContext()
 	case "run":
 		return runTask(args[2:])
 	case "help", "-h", "--help":
@@ -103,6 +106,22 @@ func runTask(parts []string) error {
 	return nil
 }
 
+func runContext() error {
+	summary, err := projectcontext.NewScanner("").Scan(context.Background())
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Root: %s\n", summary.Root)
+	fmt.Printf("Total files: %d\n", summary.TotalFiles)
+	fmt.Printf("Go files: %d\n", summary.GoFiles)
+	fmt.Printf("Languages: %v\n", summary.Languages)
+	fmt.Printf("Important directories: %s\n", strings.Join(summary.ImportantDirs, ", "))
+	fmt.Println("Tree:")
+	fmt.Println(summary.Tree)
+	return nil
+}
+
 func newAgent() (*agent.Agent, error) {
 	provider, err := newProvider()
 	if err != nil {
@@ -124,6 +143,7 @@ func usageText() string {
 	return `Usage:
   agent version
   agent init
+  agent context
   agent chat
   agent run "task"`
 }

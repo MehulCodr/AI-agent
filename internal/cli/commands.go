@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/MehulCodr/AI-agent/internal/agent"
-	"github.com/MehulCodr/AI-agent/internal/llm"
 )
 
 const (
@@ -30,7 +29,11 @@ func Run(args []string) error {
 	case "init":
 		return runInit()
 	case "chat":
-		return StartREPL(context.Background(), os.Stdin, os.Stdout, newAgent())
+		agent, err := newAgent()
+		if err != nil {
+			return err
+		}
+		return StartREPL(context.Background(), os.Stdin, os.Stdout, agent)
 	case "run":
 		return runTask(args[2:])
 	case "help", "-h", "--help":
@@ -63,7 +66,7 @@ func runInit() error {
 
 	config := map[string]string{
 		"version": version,
-		"model":   "",
+		"model":   defaultGeminiModel,
 	}
 
 	data, err := json.MarshalIndent(config, "", "  ")
@@ -86,7 +89,12 @@ func runTask(parts []string) error {
 		return errors.New(`missing task: usage: agent run "task"`)
 	}
 
-	response, err := newAgent().Run(context.Background(), task)
+	agent, err := newAgent()
+	if err != nil {
+		return err
+	}
+
+	response, err := agent.Run(context.Background(), task)
 	if err != nil {
 		return err
 	}
@@ -95,8 +103,13 @@ func runTask(parts []string) error {
 	return nil
 }
 
-func newAgent() *agent.Agent {
-	return agent.New(llm.MockProvider{})
+func newAgent() (*agent.Agent, error) {
+	provider, err := newProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	return agent.New(provider), nil
 }
 
 func usageError() error {

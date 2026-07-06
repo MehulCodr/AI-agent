@@ -8,7 +8,7 @@ import (
 )
 
 func TestLoadDotEnvSetsAgentConfig(t *testing.T) {
-	t.Chdir(t.TempDir())
+	chdirTest(t, t.TempDir())
 	t.Setenv("AI_AGENT_PROVIDER", "")
 	t.Setenv("AI_AGENT_MODEL", "")
 	t.Setenv("AI_AGENT_API_KEY", "")
@@ -39,7 +39,7 @@ func TestLoadDotEnvSetsAgentConfig(t *testing.T) {
 }
 
 func TestLoadDotEnvDoesNotOverrideEnvironment(t *testing.T) {
-	t.Chdir(t.TempDir())
+	chdirTest(t, t.TempDir())
 	t.Setenv("AI_AGENT_PROVIDER", "mock")
 	t.Setenv("AI_AGENT_MODEL", "env-model")
 	t.Setenv("AI_AGENT_API_KEY", "env-key")
@@ -66,7 +66,7 @@ func TestLoadDotEnvDoesNotOverrideEnvironment(t *testing.T) {
 }
 
 func TestNewProviderUsesMockByDefault(t *testing.T) {
-	t.Chdir(t.TempDir())
+	chdirTest(t, t.TempDir())
 	t.Setenv("AI_AGENT_PROVIDER", "")
 	t.Setenv("AI_AGENT_MODEL", "")
 	t.Setenv("AI_AGENT_API_KEY", "")
@@ -82,7 +82,7 @@ func TestNewProviderUsesMockByDefault(t *testing.T) {
 }
 
 func TestNewProviderUsesGeminiWithAPIKey(t *testing.T) {
-	t.Chdir(t.TempDir())
+	chdirTest(t, t.TempDir())
 	t.Setenv("AI_AGENT_PROVIDER", "")
 	t.Setenv("AI_AGENT_MODEL", "")
 	t.Setenv("AI_AGENT_API_KEY", "")
@@ -99,4 +99,22 @@ func TestNewProviderUsesGeminiWithAPIKey(t *testing.T) {
 	if _, ok := provider.(*llm.GeminiProvider); !ok {
 		t.Fatalf("provider type = %T, want *llm.GeminiProvider", provider)
 	}
+}
+
+func chdirTest(t *testing.T, dir string) {
+	t.Helper()
+
+	previous, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("change working directory: %v", err)
+	}
+
+	t.Cleanup(func() {
+		if err := os.Chdir(previous); err != nil {
+			t.Fatalf("restore working directory: %v", err)
+		}
+	})
 }

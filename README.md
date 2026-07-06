@@ -2,9 +2,9 @@
 
 `AI-agent` is a Go CLI foundation for an AI coding agent.
 
-## Current Day 1 Status
+## Current Status
 
-Day 1 Person 1 work is complete: the project has a basic command router, local initialization, a placeholder chat REPL, and a placeholder task runner. LLM logic, tool calling, file editing, shell execution, and agent reasoning are intentionally left for later branches.
+Day 1 CLI and LLM foundations are in place. Day 2 adds the safe tool system foundation with a registry plus basic echo, current directory, and list files tools. LLM tool calling, file editing, shell execution, and agent reasoning are intentionally left for later branches.
 
 ## Available Commands
 
@@ -20,8 +20,8 @@ agent run "task"
 From the repository root:
 
 ```sh
-go run ./cmd/agent version
-go run ./cmd/agent init
-go run ./cmd/agent run "summarize this repo"
-go run ./cmd/agent chat
+go run ./cmd version
+go run ./cmd init
+go run ./cmd run "summarize this repo"
+go run ./cmd chat
 ```

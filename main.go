@@ -4,7 +4,7 @@ import (
 	"context"
 	"os"
 
-	"AI-agent/cmd"
+	"github.com/MehulCodr/AI-agent/cmd"
 )
 
 func main() {

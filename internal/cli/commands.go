@@ -11,6 +11,7 @@ import (
 
 	"github.com/MehulCodr/AI-agent/internal/agent"
 	projectcontext "github.com/MehulCodr/AI-agent/internal/context"
+	"github.com/MehulCodr/AI-agent/internal/llm"
 )
 
 const (
@@ -69,7 +70,7 @@ func runInit() error {
 
 	config := map[string]string{
 		"version": version,
-		"model":   defaultGeminiModel,
+		"model":   llm.DefaultModel,
 	}
 
 	data, err := json.MarshalIndent(config, "", "  ")

@@ -2,88 +2,75 @@ package cli
 
 import (
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/MehulCodr/AI-agent/internal/llm"
 )
 
-func TestLoadRuntimeConfigReadsDotEnv(t *testing.T) {
+func TestLoadDotEnvSetsAgentConfig(t *testing.T) {
 	t.Chdir(t.TempDir())
-	t.Setenv("GEMINI_API_KEY", "")
-	t.Setenv("GEMINI_MODEL", "")
-	t.Setenv("GEMINI_BASE_URL", "")
+	t.Setenv("AI_AGENT_PROVIDER", "")
+	t.Setenv("AI_AGENT_MODEL", "")
+	t.Setenv("AI_AGENT_API_KEY", "")
+	t.Setenv("AI_AGENT_BASE_URL", "")
 
-	data := []byte("GEMINI_API_KEY=test-key\nGEMINI_MODEL=test-model\nGEMINI_BASE_URL=https://example.test/v1beta\n")
+	data := []byte("AI_AGENT_PROVIDER=gemini\nAI_AGENT_MODEL=test-model\nAI_AGENT_API_KEY=test-key\nAI_AGENT_BASE_URL=https://example.test/v1beta\n")
 	if err := os.WriteFile(".env", data, 0600); err != nil {
 		t.Fatalf("write .env: %v", err)
 	}
 
-	got, err := loadRuntimeConfig()
-	if err != nil {
-		t.Fatalf("loadRuntimeConfig returned error: %v", err)
+	if err := loadDotEnv(".env"); err != nil {
+		t.Fatalf("loadDotEnv returned error: %v", err)
 	}
-	if got.GeminiAPIKey != "test-key" {
-		t.Fatalf("GeminiAPIKey = %q, want test-key", got.GeminiAPIKey)
+
+	got := llm.LoadConfigFromEnv()
+	if got.Provider != "gemini" {
+		t.Fatalf("Provider = %q, want gemini", got.Provider)
 	}
 	if got.Model != "test-model" {
 		t.Fatalf("Model = %q, want test-model", got.Model)
 	}
-	if got.GeminiBaseURL != "https://example.test/v1beta" {
-		t.Fatalf("GeminiBaseURL = %q, want https://example.test/v1beta", got.GeminiBaseURL)
+	if got.APIKey != "test-key" {
+		t.Fatalf("APIKey = %q, want test-key", got.APIKey)
+	}
+	if got.BaseURL != "https://example.test/v1beta" {
+		t.Fatalf("BaseURL = %q, want https://example.test/v1beta", got.BaseURL)
 	}
 }
 
-func TestLoadRuntimeConfigUsesLocalModel(t *testing.T) {
+func TestLoadDotEnvDoesNotOverrideEnvironment(t *testing.T) {
 	t.Chdir(t.TempDir())
-	t.Setenv("GEMINI_API_KEY", "")
-	t.Setenv("GEMINI_MODEL", "")
-	t.Setenv("GEMINI_BASE_URL", "")
+	t.Setenv("AI_AGENT_PROVIDER", "mock")
+	t.Setenv("AI_AGENT_MODEL", "env-model")
+	t.Setenv("AI_AGENT_API_KEY", "env-key")
+	t.Setenv("AI_AGENT_BASE_URL", "")
 
-	if err := os.Mkdir(".agent", 0755); err != nil {
-		t.Fatalf("create .agent: %v", err)
-	}
-	configPath := filepath.Join(".agent", "config.json")
-	if err := os.WriteFile(configPath, []byte(`{"model":"local-model"}`), 0644); err != nil {
-		t.Fatalf("write local config: %v", err)
-	}
-
-	got, err := loadRuntimeConfig()
-	if err != nil {
-		t.Fatalf("loadRuntimeConfig returned error: %v", err)
-	}
-	if got.Model != "local-model" {
-		t.Fatalf("Model = %q, want local-model", got.Model)
-	}
-}
-
-func TestLoadRuntimeConfigPrefersEnvironment(t *testing.T) {
-	t.Chdir(t.TempDir())
-	t.Setenv("GEMINI_API_KEY", "env-key")
-	t.Setenv("GEMINI_MODEL", "env-model")
-	t.Setenv("GEMINI_BASE_URL", "")
-
-	if err := os.WriteFile(".env", []byte("GEMINI_API_KEY=file-key\nGEMINI_MODEL=file-model\n"), 0600); err != nil {
+	if err := os.WriteFile(".env", []byte("AI_AGENT_PROVIDER=gemini\nAI_AGENT_MODEL=file-model\nAI_AGENT_API_KEY=file-key\n"), 0600); err != nil {
 		t.Fatalf("write .env: %v", err)
 	}
 
-	got, err := loadRuntimeConfig()
-	if err != nil {
-		t.Fatalf("loadRuntimeConfig returned error: %v", err)
+	if err := loadDotEnv(".env"); err != nil {
+		t.Fatalf("loadDotEnv returned error: %v", err)
 	}
-	if got.GeminiAPIKey != "env-key" {
-		t.Fatalf("GeminiAPIKey = %q, want env-key", got.GeminiAPIKey)
+
+	got := llm.LoadConfigFromEnv()
+	if got.Provider != "mock" {
+		t.Fatalf("Provider = %q, want mock", got.Provider)
 	}
 	if got.Model != "env-model" {
 		t.Fatalf("Model = %q, want env-model", got.Model)
 	}
+	if got.APIKey != "env-key" {
+		t.Fatalf("APIKey = %q, want env-key", got.APIKey)
+	}
 }
 
-func TestNewProviderUsesMockWithoutAPIKey(t *testing.T) {
+func TestNewProviderUsesMockByDefault(t *testing.T) {
 	t.Chdir(t.TempDir())
-	t.Setenv("GEMINI_API_KEY", "")
-	t.Setenv("GEMINI_MODEL", "")
-	t.Setenv("GEMINI_BASE_URL", "")
+	t.Setenv("AI_AGENT_PROVIDER", "")
+	t.Setenv("AI_AGENT_MODEL", "")
+	t.Setenv("AI_AGENT_API_KEY", "")
+	t.Setenv("AI_AGENT_BASE_URL", "")
 
 	provider, err := newProvider()
 	if err != nil {
@@ -96,11 +83,12 @@ func TestNewProviderUsesMockWithoutAPIKey(t *testing.T) {
 
 func TestNewProviderUsesGeminiWithAPIKey(t *testing.T) {
 	t.Chdir(t.TempDir())
-	t.Setenv("GEMINI_API_KEY", "")
-	t.Setenv("GEMINI_MODEL", "")
-	t.Setenv("GEMINI_BASE_URL", "")
+	t.Setenv("AI_AGENT_PROVIDER", "")
+	t.Setenv("AI_AGENT_MODEL", "")
+	t.Setenv("AI_AGENT_API_KEY", "")
+	t.Setenv("AI_AGENT_BASE_URL", "")
 
-	if err := os.WriteFile(".env", []byte("GEMINI_API_KEY=test-key\nGEMINI_MODEL=test-model\n"), 0600); err != nil {
+	if err := os.WriteFile(".env", []byte("AI_AGENT_PROVIDER=gemini\nAI_AGENT_API_KEY=test-key\n"), 0600); err != nil {
 		t.Fatalf("write .env: %v", err)
 	}
 

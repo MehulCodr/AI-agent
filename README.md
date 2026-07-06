@@ -30,13 +30,14 @@ go run ./cmd chat
 
 ## LLM Configuration
 
-Create a local `.env` file to use the Gemini provider:
+Create a local `.env` file to use the real Gemini provider:
 
 ```sh
-GEMINI_API_KEY=your-api-key
-GEMINI_MODEL=gemini-3.5-flash
+AI_AGENT_PROVIDER=gemini
+AI_AGENT_API_KEY=your-gemini-api-key
+AI_AGENT_MODEL=gemini-3.5-flash
 # Optional:
-# GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
+# AI_AGENT_BASE_URL=https://generativelanguage.googleapis.com/v1beta
 ```
 
-If `GEMINI_API_KEY` is missing, the CLI uses the local mock provider.
+If no API key is configured, the CLI uses the local mock provider. Existing `GEMINI_API_KEY`, `GEMINI_MODEL`, and `GEMINI_BASE_URL` names are also supported as fallbacks.

@@ -2,7 +2,6 @@ package cli
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -10,58 +9,12 @@ import (
 	"github.com/MehulCodr/AI-agent/internal/llm"
 )
 
-const defaultGeminiModel = "gemini-3.5-flash"
-
-type runtimeConfig struct {
-	GeminiAPIKey  string
-	GeminiBaseURL string
-	Model         string
-}
-
-type localConfig struct {
-	Model string `json:"model"`
-}
-
 func newProvider() (llm.Provider, error) {
-	config, err := loadRuntimeConfig()
-	if err != nil {
+	if err := loadDotEnv(".env"); err != nil {
 		return nil, err
 	}
 
-	if config.GeminiAPIKey == "" {
-		return llm.MockProvider{}, nil
-	}
-
-	return llm.NewGeminiProvider(llm.GeminiConfig{
-		APIKey:  config.GeminiAPIKey,
-		BaseURL: config.GeminiBaseURL,
-		Model:   config.Model,
-	}), nil
-}
-
-func loadRuntimeConfig() (runtimeConfig, error) {
-	if err := loadDotEnv(".env"); err != nil {
-		return runtimeConfig{}, err
-	}
-
-	local, err := loadLocalConfig(".agent/config.json")
-	if err != nil {
-		return runtimeConfig{}, err
-	}
-
-	model := strings.TrimSpace(os.Getenv("GEMINI_MODEL"))
-	if model == "" {
-		model = strings.TrimSpace(local.Model)
-	}
-	if model == "" {
-		model = defaultGeminiModel
-	}
-
-	return runtimeConfig{
-		GeminiAPIKey:  strings.TrimSpace(os.Getenv("GEMINI_API_KEY")),
-		GeminiBaseURL: strings.TrimSpace(os.Getenv("GEMINI_BASE_URL")),
-		Model:         model,
-	}, nil
+	return llm.NewProviderFromConfig(llm.LoadConfigFromEnv())
 }
 
 func loadDotEnv(path string) error {
@@ -120,21 +73,4 @@ func trimEnvValue(value string) string {
 	}
 
 	return value
-}
-
-func loadLocalConfig(path string) (localConfig, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return localConfig{}, nil
-		}
-		return localConfig{}, fmt.Errorf("read %s: %w", path, err)
-	}
-
-	var config localConfig
-	if err := json.Unmarshal(data, &config); err != nil {
-		return localConfig{}, fmt.Errorf("parse %s: %w", path, err)
-	}
-
-	return config, nil
 }

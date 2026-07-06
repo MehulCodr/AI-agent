@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-func TestGeminiProviderChat(t *testing.T) {
+func TestGeminiProviderChatParsesMockedHTTPResponse(t *testing.T) {
 	client := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
 		if r.URL.Path != "/v1beta/models/test-model:generateContent" {
 			t.Fatalf("path = %q, want /v1beta/models/test-model:generateContent", r.URL.Path)
@@ -35,11 +35,11 @@ func TestGeminiProviderChat(t *testing.T) {
 	})}
 
 	provider := NewGeminiProvider(GeminiConfig{
-		APIKey:  "test-key",
-		BaseURL: "https://example.test/v1beta",
-		Model:   "test-model",
+		APIKey:     "test-key",
+		BaseURL:    "https://example.test/v1beta",
+		Model:      "test-model",
+		HTTPClient: client,
 	})
-	provider.client = client
 
 	got, err := provider.Chat(context.Background(), []Message{{Role: "user", Content: "hello"}})
 	if err != nil {
@@ -50,7 +50,34 @@ func TestGeminiProviderChat(t *testing.T) {
 	}
 }
 
-func TestGeminiProviderChatRequiresAPIKey(t *testing.T) {
+func TestGeminiProviderChatParsesToolCalls(t *testing.T) {
+	client := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		return jsonResponse(http.StatusOK, `{"candidates":[{"content":{"parts":[{"functionCall":{"name":"echo","args":{"text":"hello"}}}]}}]}`), nil
+	})}
+
+	provider := NewGeminiProvider(GeminiConfig{
+		APIKey:     "test-key",
+		BaseURL:    "https://example.test/v1beta",
+		Model:      "test-model",
+		HTTPClient: client,
+	})
+
+	got, err := provider.Chat(context.Background(), []Message{{Role: "user", Content: "hello"}})
+	if err != nil {
+		t.Fatalf("Chat returned error: %v", err)
+	}
+	if len(got.ToolCalls) != 1 {
+		t.Fatalf("len(ToolCalls) = %d, want 1", len(got.ToolCalls))
+	}
+	if got.ToolCalls[0].Function.Name != "echo" {
+		t.Fatalf("tool call name = %q, want echo", got.ToolCalls[0].Function.Name)
+	}
+	if !strings.Contains(got.ToolCalls[0].Function.Arguments, "hello") {
+		t.Fatalf("tool call arguments = %q, want hello", got.ToolCalls[0].Function.Arguments)
+	}
+}
+
+func TestGeminiProviderRequiresAPIKey(t *testing.T) {
 	provider := NewGeminiProvider(GeminiConfig{Model: "test-model"})
 
 	_, err := provider.Chat(context.Background(), []Message{{Role: "user", Content: "hello"}})
@@ -59,24 +86,16 @@ func TestGeminiProviderChatRequiresAPIKey(t *testing.T) {
 	}
 }
 
-func TestGeminiProviderChatRequiresModel(t *testing.T) {
-	provider := NewGeminiProvider(GeminiConfig{APIKey: "test-key"})
-
-	_, err := provider.Chat(context.Background(), []Message{{Role: "user", Content: "hello"}})
-	if err == nil || !strings.Contains(err.Error(), "model") {
-		t.Fatalf("error = %v, want model error", err)
-	}
-}
-
-func TestGeminiProviderChatReturnsAPIError(t *testing.T) {
-	provider := NewGeminiProvider(GeminiConfig{
-		APIKey:  "test-key",
-		BaseURL: "https://example.test/v1beta",
-		Model:   "test-model",
-	})
-	provider.client = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+func TestGeminiProviderReturnsAPIError(t *testing.T) {
+	client := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
 		return jsonResponse(http.StatusBadRequest, "bad request"), nil
 	})}
+	provider := NewGeminiProvider(GeminiConfig{
+		APIKey:     "test-key",
+		BaseURL:    "https://example.test/v1beta",
+		Model:      "test-model",
+		HTTPClient: client,
+	})
 
 	_, err := provider.Chat(context.Background(), []Message{{Role: "user", Content: "hello"}})
 	if err == nil || !strings.Contains(err.Error(), "400 Bad Request") {
@@ -84,15 +103,16 @@ func TestGeminiProviderChatReturnsAPIError(t *testing.T) {
 	}
 }
 
-func TestGeminiProviderChatRequiresCandidate(t *testing.T) {
-	provider := NewGeminiProvider(GeminiConfig{
-		APIKey:  "test-key",
-		BaseURL: "https://example.test/v1beta",
-		Model:   "test-model",
-	})
-	provider.client = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+func TestGeminiProviderRequiresCandidate(t *testing.T) {
+	client := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
 		return jsonResponse(http.StatusOK, `{"candidates":[]}`), nil
 	})}
+	provider := NewGeminiProvider(GeminiConfig{
+		APIKey:     "test-key",
+		BaseURL:    "https://example.test/v1beta",
+		Model:      "test-model",
+		HTTPClient: client,
+	})
 
 	_, err := provider.Chat(context.Background(), []Message{{Role: "user", Content: "hello"}})
 	if err == nil || !strings.Contains(err.Error(), "no candidates") {

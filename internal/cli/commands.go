@@ -1,12 +1,16 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/MehulCodr/AI-agent/internal/agent"
+	"github.com/MehulCodr/AI-agent/internal/llm"
 )
 
 const (
@@ -26,7 +30,7 @@ func Run(args []string) error {
 	case "init":
 		return runInit()
 	case "chat":
-		return StartREPL(os.Stdin, os.Stdout)
+		return StartREPL(context.Background(), os.Stdin, os.Stdout, newAgent())
 	case "run":
 		return runTask(args[2:])
 	case "help", "-h", "--help":
@@ -82,8 +86,17 @@ func runTask(parts []string) error {
 		return errors.New(`missing task: usage: agent run "task"`)
 	}
 
-	fmt.Printf("Running task: %s\n", task)
+	response, err := newAgent().Run(context.Background(), task)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(response)
 	return nil
+}
+
+func newAgent() *agent.Agent {
+	return agent.New(llm.MockProvider{})
 }
 
 func usageError() error {

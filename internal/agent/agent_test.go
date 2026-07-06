@@ -3,10 +3,12 @@ package agent
 import (
 	"context"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/MehulCodr/AI-agent/internal/llm"
+	"github.com/MehulCodr/AI-agent/internal/tools"
 )
 
 func TestAgentReturnsMockLLMResponse(t *testing.T) {
@@ -72,6 +74,32 @@ func TestAgentClearRemovesHistory(t *testing.T) {
 
 	if len(agent.Messages()) != 0 {
 		t.Fatalf("len(Messages()) = %d, want 0", len(agent.Messages()))
+	}
+}
+
+func TestAgentHasDefaultSafeTools(t *testing.T) {
+	agent := New(&fakeProvider{})
+
+	got := agent.Tools()
+	want := []string{"current_directory", "echo", "list_files"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("Tools() = %#v, want %#v", got, want)
+	}
+}
+
+func TestAgentCanReplaceTools(t *testing.T) {
+	registry := tools.NewRegistry()
+	if err := registry.Register(tools.EchoTool{}); err != nil {
+		t.Fatalf("Register returned error: %v", err)
+	}
+
+	agent := New(&fakeProvider{})
+	agent.SetTools(registry)
+
+	got := agent.Tools()
+	want := []string{"echo"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("Tools() = %#v, want %#v", got, want)
 	}
 }
 

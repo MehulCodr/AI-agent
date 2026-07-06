@@ -2,13 +2,26 @@ package cli
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"strings"
 )
 
+type ChatRunner interface {
+	Run(ctx context.Context, input string) (string, error)
+	Clear()
+}
+
 // StartREPL runs the interactive chat loop.
-func StartREPL(input io.Reader, output io.Writer) error {
+func StartREPL(ctx context.Context, input io.Reader, output io.Writer, runner ChatRunner) error {
+	if ctx == nil {
+		return fmt.Errorf("context is required")
+	}
+	if runner == nil {
+		return fmt.Errorf("chat runner is required")
+	}
+
 	scanner := bufio.NewScanner(input)
 
 	fmt.Fprintln(output, "Welcome to AI-agent chat.")
@@ -32,9 +45,15 @@ func StartREPL(input io.Reader, output io.Writer) error {
 		case "/help":
 			printREPLHelp(output)
 		case "/clear":
+			runner.Clear()
 			fmt.Fprintln(output, "Conversation cleared.")
 		default:
-			fmt.Fprintf(output, "Agent: received %q\n", line)
+			response, err := runner.Run(ctx, line)
+			if err != nil {
+				fmt.Fprintf(output, "Error: %v\n", err)
+				continue
+			}
+			fmt.Fprintf(output, "Agent: %s\n", response)
 		}
 	}
 

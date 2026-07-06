@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	appName = "ai-cli-agent"
+	appName = "AI-agent"
 	version = "v0.1.0"
 )
 

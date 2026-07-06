@@ -11,7 +11,7 @@ import (
 func StartREPL(input io.Reader, output io.Writer) error {
 	scanner := bufio.NewScanner(input)
 
-	fmt.Fprintln(output, "Welcome to ai-cli-agent chat.")
+	fmt.Fprintln(output, "Welcome to AI-agent chat.")
 	fmt.Fprintln(output, `Type /help for commands or /exit to quit.`)
 
 	for {

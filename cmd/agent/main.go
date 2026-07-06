@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"ai-cli-agent/internal/cli"
+	"github.com/MehulCodr/AI-agent/internal/cli"
 )
 
 func main() {

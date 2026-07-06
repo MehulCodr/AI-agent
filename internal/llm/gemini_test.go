@@ -11,35 +11,32 @@ import (
 	"testing"
 )
 
-func TestOpenAIProviderChat(t *testing.T) {
+func TestGeminiProviderChat(t *testing.T) {
 	client := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
-		if r.URL.Path != "/v1/chat/completions" {
-			t.Fatalf("path = %q, want /v1/chat/completions", r.URL.Path)
+		if r.URL.Path != "/v1beta/models/test-model:generateContent" {
+			t.Fatalf("path = %q, want /v1beta/models/test-model:generateContent", r.URL.Path)
+		}
+		if r.URL.Query().Get("key") != "test-key" {
+			t.Fatalf("key = %q, want test-key", r.URL.Query().Get("key"))
 		}
 		if r.Method != http.MethodPost {
 			t.Fatalf("method = %q, want POST", r.Method)
 		}
-		if r.Header.Get("Authorization") != "Bearer test-key" {
-			t.Fatalf("authorization header = %q", r.Header.Get("Authorization"))
-		}
 
-		var req chatRequest
+		var req geminiRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			t.Fatalf("decode request: %v", err)
 		}
-		if req.Model != "test-model" {
-			t.Fatalf("model = %q, want test-model", req.Model)
-		}
-		if len(req.Messages) != 1 || req.Messages[0].Content != "hello" {
-			t.Fatalf("messages = %#v", req.Messages)
+		if len(req.Contents) != 1 || req.Contents[0].Parts[0].Text != "hello" {
+			t.Fatalf("contents = %#v", req.Contents)
 		}
 
-		return jsonResponse(http.StatusOK, `{"choices":[{"message":{"role":"assistant","content":"hi there"}}]}`), nil
+		return jsonResponse(http.StatusOK, `{"candidates":[{"content":{"parts":[{"text":"hi there"}]}}]}`), nil
 	})}
 
-	provider := NewOpenAIProvider(OpenAIConfig{
+	provider := NewGeminiProvider(GeminiConfig{
 		APIKey:  "test-key",
-		BaseURL: "https://example.test/v1",
+		BaseURL: "https://example.test/v1beta",
 		Model:   "test-model",
 	})
 	provider.client = client
@@ -53,8 +50,8 @@ func TestOpenAIProviderChat(t *testing.T) {
 	}
 }
 
-func TestOpenAIProviderChatRequiresAPIKey(t *testing.T) {
-	provider := NewOpenAIProvider(OpenAIConfig{Model: "test-model"})
+func TestGeminiProviderChatRequiresAPIKey(t *testing.T) {
+	provider := NewGeminiProvider(GeminiConfig{Model: "test-model"})
 
 	_, err := provider.Chat(context.Background(), []Message{{Role: "user", Content: "hello"}})
 	if err == nil || !strings.Contains(err.Error(), "api key") {
@@ -62,8 +59,8 @@ func TestOpenAIProviderChatRequiresAPIKey(t *testing.T) {
 	}
 }
 
-func TestOpenAIProviderChatRequiresModel(t *testing.T) {
-	provider := NewOpenAIProvider(OpenAIConfig{APIKey: "test-key"})
+func TestGeminiProviderChatRequiresModel(t *testing.T) {
+	provider := NewGeminiProvider(GeminiConfig{APIKey: "test-key"})
 
 	_, err := provider.Chat(context.Background(), []Message{{Role: "user", Content: "hello"}})
 	if err == nil || !strings.Contains(err.Error(), "model") {
@@ -71,10 +68,10 @@ func TestOpenAIProviderChatRequiresModel(t *testing.T) {
 	}
 }
 
-func TestOpenAIProviderChatReturnsAPIError(t *testing.T) {
-	provider := NewOpenAIProvider(OpenAIConfig{
+func TestGeminiProviderChatReturnsAPIError(t *testing.T) {
+	provider := NewGeminiProvider(GeminiConfig{
 		APIKey:  "test-key",
-		BaseURL: "https://example.test/v1",
+		BaseURL: "https://example.test/v1beta",
 		Model:   "test-model",
 	})
 	provider.client = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
@@ -87,19 +84,30 @@ func TestOpenAIProviderChatReturnsAPIError(t *testing.T) {
 	}
 }
 
-func TestOpenAIProviderChatRequiresChoice(t *testing.T) {
-	provider := NewOpenAIProvider(OpenAIConfig{
+func TestGeminiProviderChatRequiresCandidate(t *testing.T) {
+	provider := NewGeminiProvider(GeminiConfig{
 		APIKey:  "test-key",
-		BaseURL: "https://example.test/v1",
+		BaseURL: "https://example.test/v1beta",
 		Model:   "test-model",
 	})
 	provider.client = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
-		return jsonResponse(http.StatusOK, `{"choices":[]}`), nil
+		return jsonResponse(http.StatusOK, `{"candidates":[]}`), nil
 	})}
 
 	_, err := provider.Chat(context.Background(), []Message{{Role: "user", Content: "hello"}})
-	if err == nil || !strings.Contains(err.Error(), "no choices") {
-		t.Fatalf("error = %v, want no choices error", err)
+	if err == nil || !strings.Contains(err.Error(), "no candidates") {
+		t.Fatalf("error = %v, want no candidates error", err)
+	}
+}
+
+func TestGeminiContentsMapsAssistantToModel(t *testing.T) {
+	got := geminiContents([]Message{
+		{Role: "user", Content: "hello"},
+		{Role: "assistant", Content: "hi"},
+	})
+
+	if got[0].Role != "user" || got[1].Role != "model" {
+		t.Fatalf("contents = %#v, want user then model roles", got)
 	}
 }
 

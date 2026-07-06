@@ -28,6 +28,8 @@ go run ./cmd run "summarize this repo"
 go run ./cmd chat
 ```
 
+Chat supports `/history`, `/clear`, and `/exit`.
+
 ## LLM Configuration
 
 Create a local `.env` file to use the real Gemini provider:

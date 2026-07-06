@@ -102,6 +102,9 @@ func runTask(parts []string) error {
 	if err != nil {
 		return err
 	}
+	if err := agent.SaveSession(); err != nil {
+		return err
+	}
 
 	fmt.Println(response)
 	return nil
@@ -129,7 +132,12 @@ func newAgent() (*agent.Agent, error) {
 		return nil, err
 	}
 
-	return agent.New(provider), nil
+	session, err := agent.LoadLatestSession()
+	if err != nil {
+		return nil, err
+	}
+
+	return agent.NewWithSession(provider, session), nil
 }
 
 func usageError() error {

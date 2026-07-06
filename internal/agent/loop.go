@@ -27,7 +27,7 @@ func (a *Agent) Run(ctx context.Context, input string) (string, error) {
 		return "", err
 	}
 
-	a.messages = append(a.messages, llm.Message{
+	a.memory.Add(llm.Message{
 		Role:    "user",
 		Content: input,
 	})
@@ -44,6 +44,7 @@ func (a *Agent) Run(ctx context.Context, input string) (string, error) {
 		response.Content = toolCallsNotImplemented
 	}
 
-	a.messages = append(a.messages, response)
+	a.memory.Add(response)
+	a.syncSession()
 	return response.Content, nil
 }

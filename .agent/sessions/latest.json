@@ -1,0 +1,14 @@
+{
+  "id": "latest",
+  "created_at": "2026-07-06T19:41:58.780759245Z",
+  "messages": [
+    {
+      "role": "user",
+      "content": "coherence smoke"
+    },
+    {
+      "role": "assistant",
+      "content": "mock response: coherence smoke"
+    }
+  ]
+}

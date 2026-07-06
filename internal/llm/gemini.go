@@ -13,9 +13,10 @@ import (
 )
 
 type GeminiConfig struct {
-	APIKey  string
-	BaseURL string
-	Model   string
+	APIKey     string
+	BaseURL    string
+	Model      string
+	HTTPClient *http.Client
 }
 
 type GeminiProvider struct {
@@ -27,10 +28,18 @@ func NewGeminiProvider(config GeminiConfig) *GeminiProvider {
 	if config.BaseURL == "" {
 		config.BaseURL = "https://generativelanguage.googleapis.com/v1beta"
 	}
+	if config.Model == "" {
+		config.Model = DefaultModel
+	}
+
+	client := config.HTTPClient
+	if client == nil {
+		client = &http.Client{Timeout: 60 * time.Second}
+	}
 
 	return &GeminiProvider{
 		config: config,
-		client: &http.Client{Timeout: 60 * time.Second},
+		client: client,
 	}
 }
 
@@ -75,12 +84,11 @@ func (p *GeminiProvider) Chat(ctx context.Context, messages []Message) (Message,
 		return Message{}, fmt.Errorf("gemini response had no candidates")
 	}
 
-	text := geminiText(result.Candidates[0].Content.Parts)
-	if text == "" {
-		return Message{}, fmt.Errorf("gemini response had no text")
+	message := result.Candidates[0].Content.toMessage()
+	if message.Content == "" && len(message.ToolCalls) == 0 {
+		return Message{}, fmt.Errorf("gemini response had no content")
 	}
-
-	return Message{Role: "assistant", Content: text}, nil
+	return message, nil
 }
 
 type geminiRequest struct {
@@ -93,7 +101,13 @@ type geminiContent struct {
 }
 
 type geminiPart struct {
-	Text string `json:"text,omitempty"`
+	Text         string              `json:"text,omitempty"`
+	FunctionCall *geminiFunctionCall `json:"functionCall,omitempty"`
+}
+
+type geminiFunctionCall struct {
+	Name string         `json:"name,omitempty"`
+	Args map[string]any `json:"args,omitempty"`
 }
 
 type geminiResponse struct {
@@ -105,32 +119,83 @@ type geminiResponse struct {
 func geminiContents(messages []Message) []geminiContent {
 	contents := make([]geminiContent, 0, len(messages))
 	for _, message := range messages {
-		text := strings.TrimSpace(message.Content)
-		if text == "" {
+		content := geminiContent{
+			Role:  geminiRole(message.Role),
+			Parts: geminiParts(message),
+		}
+		if len(content.Parts) == 0 {
 			continue
 		}
-
-		role := "user"
-		if message.Role == "assistant" {
-			role = "model"
-		}
-
-		contents = append(contents, geminiContent{
-			Role:  role,
-			Parts: []geminiPart{{Text: text}},
-		})
+		contents = append(contents, content)
 	}
-
 	return contents
 }
 
-func geminiText(parts []geminiPart) string {
-	var builder strings.Builder
-	for _, part := range parts {
-		builder.WriteString(part.Text)
+func geminiRole(role string) string {
+	if role == "assistant" {
+		return "model"
 	}
+	return "user"
+}
 
-	return builder.String()
+func geminiParts(message Message) []geminiPart {
+	parts := make([]geminiPart, 0, 1+len(message.ToolCalls))
+	if text := strings.TrimSpace(message.Content); text != "" {
+		parts = append(parts, geminiPart{Text: text})
+	}
+	for _, call := range message.ToolCalls {
+		if call.Function.Name == "" {
+			continue
+		}
+		parts = append(parts, geminiPart{
+			FunctionCall: &geminiFunctionCall{
+				Name: call.Function.Name,
+				Args: parseToolArguments(call.Function.Arguments),
+			},
+		})
+	}
+	return parts
+}
+
+func (c geminiContent) toMessage() Message {
+	message := Message{Role: "assistant"}
+	var text strings.Builder
+	for _, part := range c.Parts {
+		text.WriteString(part.Text)
+		if part.FunctionCall != nil {
+			message.ToolCalls = append(message.ToolCalls, ToolCall{
+				Type: "function",
+				Function: ToolCallFunction{
+					Name:      part.FunctionCall.Name,
+					Arguments: encodeToolArguments(part.FunctionCall.Args),
+				},
+			})
+		}
+	}
+	message.Content = text.String()
+	return message
+}
+
+func parseToolArguments(arguments string) map[string]any {
+	if strings.TrimSpace(arguments) == "" {
+		return nil
+	}
+	var values map[string]any
+	if err := json.Unmarshal([]byte(arguments), &values); err != nil {
+		return map[string]any{"raw": arguments}
+	}
+	return values
+}
+
+func encodeToolArguments(arguments map[string]any) string {
+	if len(arguments) == 0 {
+		return "{}"
+	}
+	data, err := json.Marshal(arguments)
+	if err != nil {
+		return "{}"
+	}
+	return string(data)
 }
 
 func readSnippet(body io.Reader) string {

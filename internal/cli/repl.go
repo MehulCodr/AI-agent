@@ -6,11 +6,15 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/MehulCodr/AI-agent/internal/llm"
 )
 
 type ChatRunner interface {
 	Run(ctx context.Context, input string) (string, error)
 	Clear()
+	Messages() []llm.Message
+	SaveSession() error
 }
 
 // StartREPL runs the interactive chat loop.
@@ -44,12 +48,22 @@ func StartREPL(ctx context.Context, input io.Reader, output io.Writer, runner Ch
 			return nil
 		case "/help":
 			printREPLHelp(output)
+		case "/history":
+			printHistory(output, runner.Messages())
 		case "/clear":
 			runner.Clear()
+			if err := runner.SaveSession(); err != nil {
+				fmt.Fprintf(output, "Error: %v\n", err)
+				continue
+			}
 			fmt.Fprintln(output, "Conversation cleared.")
 		default:
 			response, err := runner.Run(ctx, line)
 			if err != nil {
+				fmt.Fprintf(output, "Error: %v\n", err)
+				continue
+			}
+			if err := runner.SaveSession(); err != nil {
 				fmt.Fprintf(output, "Error: %v\n", err)
 				continue
 			}
@@ -68,6 +82,18 @@ func StartREPL(ctx context.Context, input io.Reader, output io.Writer, runner Ch
 func printREPLHelp(output io.Writer) {
 	fmt.Fprintln(output, "Available commands:")
 	fmt.Fprintln(output, "  /help  Show available commands")
+	fmt.Fprintln(output, "  /history Show recent messages")
 	fmt.Fprintln(output, "  /clear Clear the conversation")
 	fmt.Fprintln(output, "  /exit  Exit the REPL")
+}
+
+func printHistory(output io.Writer, messages []llm.Message) {
+	if len(messages) == 0 {
+		fmt.Fprintln(output, "No messages yet.")
+		return
+	}
+
+	for _, message := range messages {
+		fmt.Fprintf(output, "%s: %s\n", message.Role, message.Content)
+	}
 }

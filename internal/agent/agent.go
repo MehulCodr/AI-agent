@@ -11,31 +11,42 @@ type Agent struct {
 	provider llm.Provider
 	tools    *tools.Registry
 	maxSteps int
-	messages []llm.Message
+	memory   *Memory
+	session  *Session
 }
 
 func New(provider llm.Provider) *Agent {
+	return NewWithSession(provider, nil)
+}
+
+func NewWithSession(provider llm.Provider, session *Session) *Agent {
+	if session == nil {
+		session = NewSession("latest")
+	}
 	return &Agent{
 		provider: provider,
 		tools:    defaultToolRegistry(),
 		maxSteps: defaultMaxSteps,
+		memory:   NewMemory(session.Messages...),
+		session:  session,
 	}
 }
 
 func (a *Agent) Messages() []llm.Message {
-	if a == nil {
+	if a == nil || a.memory == nil {
 		return nil
 	}
-	messages := make([]llm.Message, len(a.messages))
-	copy(messages, a.messages)
-	return messages
+	return a.memory.List()
 }
 
 func (a *Agent) Clear() {
 	if a == nil {
 		return
 	}
-	a.messages = nil
+	if a.memory != nil {
+		a.memory.Clear()
+	}
+	a.syncSession()
 }
 
 func (a *Agent) SetMaxSteps(n int) {
@@ -62,6 +73,21 @@ func (a *Agent) SetTools(registry *tools.Registry) {
 	}
 
 	a.tools = registry
+}
+
+func (a *Agent) SaveSession() error {
+	if a == nil {
+		return nil
+	}
+	a.syncSession()
+	return SaveLatestSession(a.session)
+}
+
+func (a *Agent) syncSession() {
+	if a == nil || a.session == nil {
+		return
+	}
+	a.session.Messages = a.Messages()
 }
 
 func defaultToolRegistry() *tools.Registry {

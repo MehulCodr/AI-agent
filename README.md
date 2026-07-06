@@ -4,7 +4,7 @@
 
 ## Current Status
 
-Day 1 CLI and LLM foundations are in place. Day 2 adds the safe tool system foundation with a registry plus basic echo, current directory, and list files tools. LLM tool calling, file editing, shell execution, and agent reasoning are intentionally left for later branches.
+Day 1 CLI and LLM foundations are in place. Day 2 adds the core agent loop, mock LLM-backed CLI runs, and the safe tool system foundation with a registry plus basic echo, current directory, and list files tools. Real tool execution, file editing, shell execution, and API-backed providers are intentionally left for later branches.
 
 ## Available Commands
 

@@ -1,6 +1,7 @@
 package llm
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -49,6 +50,53 @@ func (p *GeminiProvider) Chat(ctx context.Context, messages []Message) (Message,
 
 func (p *GeminiProvider) ChatWithTools(ctx context.Context, messages []Message, tools []ToolDefinition) (Message, error) {
 	return p.chat(ctx, messages, tools)
+}
+
+func (p *GeminiProvider) Stream(ctx context.Context, messages []Message) (<-chan StreamChunk, error) {
+	if p.config.APIKey == "" {
+		return nil, fmt.Errorf("gemini api key is required")
+	}
+	if p.config.Model == "" {
+		return nil, fmt.Errorf("gemini model is required")
+	}
+
+	payload, err := json.Marshal(geminiRequest{
+		Contents: geminiContents(messages),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	model := strings.TrimPrefix(p.config.Model, "models/")
+	endpoint := strings.TrimRight(p.config.BaseURL, "/") + "/models/" + url.PathEscape(model) + ":streamGenerateContent?alt=sse&key=" + url.QueryEscape(p.config.APIKey)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "text/event-stream")
+
+	resp, err := p.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		defer resp.Body.Close()
+		return nil, fmt.Errorf("gemini stream request failed: %s: %s", resp.Status, readSnippet(resp.Body))
+	}
+
+	chunks := make(chan StreamChunk)
+	go func() {
+		defer close(chunks)
+		defer resp.Body.Close()
+
+		if err := streamGeminiResponse(ctx, resp.Body, chunks); err != nil {
+			sendStreamChunk(ctx, chunks, StreamChunk{Error: err, Done: true})
+		}
+	}()
+
+	return chunks, nil
 }
 
 func (p *GeminiProvider) chat(ctx context.Context, messages []Message, tools []ToolDefinition) (Message, error) {
@@ -247,4 +295,72 @@ func readSnippet(body io.Reader) string {
 		return "could not read response body"
 	}
 	return string(data)
+}
+
+func streamGeminiResponse(ctx context.Context, body io.Reader, chunks chan<- StreamChunk) error {
+	scanner := bufio.NewScanner(body)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+
+	var data strings.Builder
+	for scanner.Scan() {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
+		line := strings.TrimSuffix(scanner.Text(), "\r")
+		if line == "" {
+			done, err := dispatchGeminiSSE(ctx, data.String(), chunks)
+			if err != nil {
+				return err
+			}
+			if done {
+				return nil
+			}
+			data.Reset()
+			continue
+		}
+		if strings.HasPrefix(line, "data:") {
+			if data.Len() > 0 {
+				data.WriteByte('\n')
+			}
+			data.WriteString(strings.TrimSpace(strings.TrimPrefix(line, "data:")))
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+	done, err := dispatchGeminiSSE(ctx, data.String(), chunks)
+	if err != nil {
+		return err
+	}
+	if !done {
+		sendStreamChunk(ctx, chunks, StreamChunk{Done: true})
+	}
+	return nil
+}
+
+func dispatchGeminiSSE(ctx context.Context, data string, chunks chan<- StreamChunk) (bool, error) {
+	data = strings.TrimSpace(data)
+	if data == "" {
+		return false, nil
+	}
+	if data == "[DONE]" {
+		sendStreamChunk(ctx, chunks, StreamChunk{Done: true})
+		return true, nil
+	}
+
+	var result geminiResponse
+	if err := json.Unmarshal([]byte(data), &result); err != nil {
+		return false, err
+	}
+	if len(result.Candidates) == 0 {
+		return false, nil
+	}
+
+	message := result.Candidates[0].Content.toMessage()
+	if message.Content == "" {
+		return false, nil
+	}
+	sendStreamChunk(ctx, chunks, StreamChunk{Content: message.Content})
+	return false, nil
 }

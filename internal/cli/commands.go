@@ -32,9 +32,21 @@ func Run(args []string) error {
 	case "init":
 		return runInit()
 	case "chat":
+		stream, rest, err := parseStreamFlag(args[2:])
+		if err != nil {
+			return err
+		}
+		if len(rest) > 0 {
+			return fmt.Errorf("%w: unexpected chat argument %q", apperrors.ErrInvalidInput, rest[0])
+		}
 		agent, err := newAgent()
 		if err != nil {
 			return err
+		}
+		if stream {
+			ctx, stop := interruptContext()
+			defer stop()
+			return StartStreamingREPL(ctx, os.Stdin, os.Stdout, agent)
 		}
 		return StartREPL(context.Background(), os.Stdin, os.Stdout, agent)
 	case "context":
@@ -89,6 +101,11 @@ func runInit() error {
 }
 
 func runTask(parts []string) error {
+	stream, parts, err := parseStreamFlag(parts)
+	if err != nil {
+		return err
+	}
+
 	task := strings.TrimSpace(strings.Join(parts, " "))
 	if task == "" {
 		return fmt.Errorf(`%w: missing task: usage: agent run "task"`, apperrors.ErrInvalidInput)
@@ -97,6 +114,25 @@ func runTask(parts []string) error {
 	agent, err := newAgent()
 	if err != nil {
 		return err
+	}
+
+	if stream {
+		ctx, stop := interruptContext()
+		defer stop()
+
+		chunks, err := agent.Stream(ctx, task)
+		if err != nil {
+			return err
+		}
+
+		fmt.Println("Thinking...")
+		if err := printStream(ctx, os.Stdout, chunks); err != nil && !errors.Is(err, context.Canceled) {
+			return err
+		}
+		if err := ctx.Err(); err != nil {
+			return nil
+		}
+		return agent.SaveSession()
 	}
 
 	response, err := agent.Run(context.Background(), task)
@@ -149,11 +185,27 @@ func printUsage() {
 	fmt.Println(usageText())
 }
 
+func parseStreamFlag(args []string) (bool, []string, error) {
+	stream := false
+	rest := make([]string, 0, len(args))
+	for _, arg := range args {
+		if arg == "--stream" {
+			stream = true
+			continue
+		}
+		if strings.HasPrefix(arg, "--") {
+			return false, nil, fmt.Errorf("%w: unknown flag %q", apperrors.ErrInvalidInput, arg)
+		}
+		rest = append(rest, arg)
+	}
+	return stream, rest, nil
+}
+
 func usageText() string {
 	return `Usage:
   agent version
   agent init
   agent context
-  agent chat
-  agent run "task"`
+  agent chat [--stream]
+  agent run "task" [--stream]`
 }

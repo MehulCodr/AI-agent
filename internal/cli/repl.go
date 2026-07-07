@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -20,6 +21,14 @@ type ChatRunner interface {
 
 // StartREPL runs the interactive chat loop.
 func StartREPL(ctx context.Context, input io.Reader, output io.Writer, runner ChatRunner) error {
+	return startREPL(ctx, input, output, runner, false)
+}
+
+func StartStreamingREPL(ctx context.Context, input io.Reader, output io.Writer, runner ChatRunner) error {
+	return startREPL(ctx, input, output, runner, true)
+}
+
+func startREPL(ctx context.Context, input io.Reader, output io.Writer, runner ChatRunner, stream bool) error {
 	if ctx == nil {
 		return fmt.Errorf("%w: context is required", apperrors.ErrInvalidInput)
 	}
@@ -59,6 +68,27 @@ func StartREPL(ctx context.Context, input io.Reader, output io.Writer, runner Ch
 			}
 			fmt.Fprintln(output, "Conversation cleared.")
 		default:
+			if stream {
+				fmt.Fprintln(output, "Thinking...")
+				fmt.Fprint(output, "Agent: ")
+				chunks, err := runRunnerStream(ctx, runner, line)
+				if err == nil {
+					err = printStream(ctx, output, chunks)
+				}
+				if err != nil {
+					if errors.Is(err, context.Canceled) {
+						return nil
+					}
+					fmt.Fprintf(output, "Error: %v\n", err)
+					continue
+				}
+				if err := runner.SaveSession(); err != nil {
+					fmt.Fprintf(output, "Error: %v\n", err)
+					continue
+				}
+				continue
+			}
+
 			response, err := runner.Run(ctx, line)
 			if err != nil {
 				fmt.Fprintf(output, "Error: %v\n", err)

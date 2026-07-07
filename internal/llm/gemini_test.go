@@ -112,6 +112,44 @@ func TestGeminiProviderChatWithToolsSendsDeclarations(t *testing.T) {
 	}
 }
 
+func TestGeminiProviderStreamParsesSSEChunks(t *testing.T) {
+	client := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		if r.URL.Path != "/v1beta/models/test-model:streamGenerateContent" {
+			t.Fatalf("path = %q, want streamGenerateContent endpoint", r.URL.Path)
+		}
+		if r.URL.Query().Get("alt") != "sse" {
+			t.Fatalf("alt = %q, want sse", r.URL.Query().Get("alt"))
+		}
+
+		body := strings.Join([]string{
+			`data: {"candidates":[{"content":{"parts":[{"text":"hi"}]}}]}`,
+			"",
+			`data: {"candidates":[{"content":{"parts":[{"text":" there"}]}}]}`,
+			"",
+		}, "\n")
+		return sseResponse(http.StatusOK, body), nil
+	})}
+
+	provider := NewGeminiProvider(GeminiConfig{
+		APIKey:     "test-key",
+		BaseURL:    "https://example.test/v1beta",
+		Model:      "test-model",
+		HTTPClient: client,
+	})
+
+	chunks, err := provider.Stream(context.Background(), []Message{{Role: "user", Content: "hello"}})
+	if err != nil {
+		t.Fatalf("Stream returned error: %v", err)
+	}
+	got, err := collectLLMStream(chunks)
+	if err != nil {
+		t.Fatalf("collect stream: %v", err)
+	}
+	if got != "hi there" {
+		t.Fatalf("stream content = %q, want hi there", got)
+	}
+}
+
 func TestGeminiProviderRequiresAPIKey(t *testing.T) {
 	provider := NewGeminiProvider(GeminiConfig{Model: "test-model"})
 
@@ -179,4 +217,24 @@ func jsonResponse(status int, body string) *http.Response {
 		Header:     make(http.Header),
 		Body:       io.NopCloser(bytes.NewBufferString(body)),
 	}
+}
+
+func sseResponse(status int, body string) *http.Response {
+	resp := jsonResponse(status, body)
+	resp.Header.Set("Content-Type", "text/event-stream")
+	return resp
+}
+
+func collectLLMStream(chunks <-chan StreamChunk) (string, error) {
+	var content string
+	for chunk := range chunks {
+		content += chunk.Content
+		if chunk.Error != nil {
+			return content, chunk.Error
+		}
+		if chunk.Done {
+			return content, nil
+		}
+	}
+	return content, nil
 }

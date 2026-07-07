@@ -32,6 +32,45 @@ func (p MockProvider) Chat(ctx context.Context, messages []Message) (Message, er
 	return Message{Role: "assistant", Content: content}, nil
 }
 
+func (p MockProvider) Stream(ctx context.Context, messages []Message) (<-chan StreamChunk, error) {
+	response, err := p.Chat(ctx, messages)
+	if err != nil {
+		return nil, err
+	}
+
+	chunks := make(chan StreamChunk)
+	go func() {
+		defer close(chunks)
+
+		if response.Content == "" {
+			sendStreamChunk(ctx, chunks, StreamChunk{Done: true})
+			return
+		}
+
+		parts := strings.SplitAfter(response.Content, " ")
+		for _, part := range parts {
+			if part == "" {
+				continue
+			}
+			if !sendStreamChunk(ctx, chunks, StreamChunk{Content: part}) {
+				return
+			}
+		}
+		sendStreamChunk(ctx, chunks, StreamChunk{Done: true})
+	}()
+
+	return chunks, nil
+}
+
+func sendStreamChunk(ctx context.Context, chunks chan<- StreamChunk, chunk StreamChunk) bool {
+	select {
+	case <-ctx.Done():
+		return false
+	case chunks <- chunk:
+		return true
+	}
+}
+
 func lastUserMessage(messages []Message) string {
 	for i := len(messages) - 1; i >= 0; i-- {
 		if messages[i].Role == "user" {

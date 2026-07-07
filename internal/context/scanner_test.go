@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	apperrors "github.com/MehulCodr/AI-agent/internal/errors"
 )
 
 func TestScannerCountsFiles(t *testing.T) {
@@ -75,6 +77,13 @@ func TestScannerRespectsContextCancellation(t *testing.T) {
 	_, err := NewScanner(root).Scan(ctx)
 	if !errors.Is(err, stdcontext.Canceled) {
 		t.Fatalf("error = %v, want context.Canceled", err)
+	}
+}
+
+func TestScannerRequiresContext(t *testing.T) {
+	_, err := NewScanner(t.TempDir()).Scan(nil)
+	if !errors.Is(err, apperrors.ErrInvalidInput) {
+		t.Fatalf("error = %v, want ErrInvalidInput", err)
 	}
 }
 

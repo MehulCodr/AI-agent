@@ -3,6 +3,8 @@ package tools
 import (
 	"fmt"
 	"sort"
+
+	apperrors "github.com/MehulCodr/AI-agent/internal/errors"
 )
 
 type Registry struct {
@@ -15,15 +17,15 @@ func NewRegistry() *Registry {
 
 func (r *Registry) Register(tool Tool) error {
 	if tool == nil {
-		return fmt.Errorf("register tool: tool is nil")
+		return fmt.Errorf("%w: register tool: tool is nil", apperrors.ErrInvalidInput)
 	}
 
 	name := tool.Name()
 	if name == "" {
-		return fmt.Errorf("register tool: name is required")
+		return fmt.Errorf("%w: register tool: name is required", apperrors.ErrInvalidInput)
 	}
 	if _, exists := r.tools[name]; exists {
-		return fmt.Errorf("register tool %q: already registered", name)
+		return fmt.Errorf("%w: register tool %q: already registered", apperrors.ErrInvalidInput, name)
 	}
 
 	r.tools[name] = tool
@@ -33,7 +35,7 @@ func (r *Registry) Register(tool Tool) error {
 func (r *Registry) Get(name string) (Tool, error) {
 	tool, exists := r.tools[name]
 	if !exists {
-		return nil, fmt.Errorf("tool %q not found", name)
+		return nil, fmt.Errorf("%w: tool %q", apperrors.ErrToolNotFound, name)
 	}
 
 	return tool, nil

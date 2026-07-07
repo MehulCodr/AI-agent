@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	apperrors "github.com/MehulCodr/AI-agent/internal/errors"
 	"github.com/MehulCodr/AI-agent/internal/llm"
 	"github.com/MehulCodr/AI-agent/internal/tools"
 )
@@ -57,8 +58,17 @@ func TestAgentRejectsEmptyInput(t *testing.T) {
 	agent := New(&fakeProvider{})
 
 	_, err := agent.Run(context.Background(), "   ")
-	if err == nil || !strings.Contains(err.Error(), "empty") {
-		t.Fatalf("error = %v, want empty input error", err)
+	if !errors.Is(err, apperrors.ErrInvalidInput) || !strings.Contains(err.Error(), "empty") {
+		t.Fatalf("error = %v, want ErrInvalidInput empty input error", err)
+	}
+}
+
+func TestAgentRequiresProvider(t *testing.T) {
+	agent := New(nil)
+
+	_, err := agent.Run(context.Background(), "hello")
+	if !errors.Is(err, apperrors.ErrInvalidInput) {
+		t.Fatalf("error = %v, want ErrInvalidInput", err)
 	}
 }
 

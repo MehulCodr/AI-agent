@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	apperrors "github.com/MehulCodr/AI-agent/internal/errors"
 )
 
 type ReadFileTool struct{}
@@ -50,7 +52,7 @@ func requiredString(input map[string]any, key, toolName string) (string, error) 
 		return "", err
 	}
 	if strings.TrimSpace(text) == "" {
-		return "", fmt.Errorf("%s tool %s cannot be empty", toolName, key)
+		return "", fmt.Errorf("%w: %s tool %s cannot be empty", apperrors.ErrInvalidInput, toolName, key)
 	}
 
 	return text, nil
@@ -59,12 +61,12 @@ func requiredString(input map[string]any, key, toolName string) (string, error) 
 func stringInput(input map[string]any, key, toolName string) (string, error) {
 	value, ok := input[key]
 	if !ok {
-		return "", fmt.Errorf("%s tool requires %s", toolName, key)
+		return "", fmt.Errorf("%w: %s tool requires %s", apperrors.ErrInvalidInput, toolName, key)
 	}
 
 	text, ok := value.(string)
 	if !ok {
-		return "", fmt.Errorf("%s tool %s must be a string", toolName, key)
+		return "", fmt.Errorf("%w: %s tool %s must be a string", apperrors.ErrInvalidInput, toolName, key)
 	}
 
 	return text, nil
@@ -109,7 +111,7 @@ func ensureInsideProject(root, target string) (string, error) {
 		return "", fmt.Errorf("validate path: %w", err)
 	}
 	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
-		return "", fmt.Errorf("unsafe path: path must stay inside project root")
+		return "", fmt.Errorf("%w: unsafe path: path must stay inside project root", apperrors.ErrInvalidPath)
 	}
 
 	return target, nil

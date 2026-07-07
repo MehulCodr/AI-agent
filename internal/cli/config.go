@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	apperrors "github.com/MehulCodr/AI-agent/internal/errors"
 	"github.com/MehulCodr/AI-agent/internal/llm"
 )
 
@@ -38,12 +39,12 @@ func loadDotEnv(path string) error {
 
 		key, value, ok := strings.Cut(line, "=")
 		if !ok {
-			return fmt.Errorf("parse %s:%d: expected KEY=value", path, lineNumber)
+			return fmt.Errorf("%w: parse %s:%d: expected KEY=value", apperrors.ErrInvalidInput, path, lineNumber)
 		}
 
 		key = strings.TrimSpace(key)
 		if key == "" {
-			return fmt.Errorf("parse %s:%d: key is required", path, lineNumber)
+			return fmt.Errorf("%w: parse %s:%d: key is required", apperrors.ErrInvalidInput, path, lineNumber)
 		}
 
 		value = trimEnvValue(value)

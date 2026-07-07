@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	apperrors "github.com/MehulCodr/AI-agent/internal/errors"
 )
 
 var ignoredDirs = map[string]bool{
@@ -55,7 +57,7 @@ func NewScanner(root string) *Scanner {
 
 func (s *Scanner) Scan(ctx stdcontext.Context) (*Summary, error) {
 	if ctx == nil {
-		return nil, fmt.Errorf("context is required")
+		return nil, fmt.Errorf("%w: context is required", apperrors.ErrInvalidInput)
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err

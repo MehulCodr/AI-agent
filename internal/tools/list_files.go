@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	apperrors "github.com/MehulCodr/AI-agent/internal/errors"
 )
 
 type ListFilesTool struct{}
@@ -26,7 +28,7 @@ func (ListFilesTool) Execute(ctx context.Context, input map[string]any) (string,
 	if value, ok := input["path"]; ok {
 		text, ok := value.(string)
 		if !ok {
-			return "", fmt.Errorf("list_files tool path must be a string")
+			return "", fmt.Errorf("%w: list_files tool path must be a string", apperrors.ErrInvalidInput)
 		}
 		if text != "" {
 			path = text

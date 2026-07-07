@@ -2,10 +2,13 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	apperrors "github.com/MehulCodr/AI-agent/internal/errors"
 )
 
 func TestReadFileToolReadsFile(t *testing.T) {
@@ -76,10 +79,17 @@ func TestFileToolsRejectUnsafePath(t *testing.T) {
 		_ = root
 
 		_, err := ReadFileTool{}.Execute(context.Background(), map[string]any{"path": "../outside.txt"})
-		if err == nil || !strings.Contains(err.Error(), "unsafe path") {
-			t.Fatalf("error = %v, want unsafe path error", err)
+		if !errors.Is(err, apperrors.ErrInvalidPath) || !strings.Contains(err.Error(), "unsafe path") {
+			t.Fatalf("error = %v, want ErrInvalidPath unsafe path error", err)
 		}
 	})
+}
+
+func TestReadFileToolRequiresPath(t *testing.T) {
+	_, err := ReadFileTool{}.Execute(context.Background(), nil)
+	if !errors.Is(err, apperrors.ErrInvalidInput) {
+		t.Fatalf("error = %v, want ErrInvalidInput", err)
+	}
 }
 
 func TestReadFileToolMissingFileReturnsError(t *testing.T) {
@@ -104,8 +114,40 @@ func TestEditFileToolErrorsWhenOldTextNotFound(t *testing.T) {
 			"old":  "missing",
 			"new":  "found",
 		})
-		if err == nil || !strings.Contains(err.Error(), "old text not found") {
-			t.Fatalf("error = %v, want old text not found error", err)
+		if !errors.Is(err, apperrors.ErrInvalidInput) || !strings.Contains(err.Error(), "old text not found") {
+			t.Fatalf("error = %v, want ErrInvalidInput old text not found error", err)
+		}
+	})
+}
+
+func TestWriteFileToolRequiresStringContent(t *testing.T) {
+	withProjectRoot(t, func(root string) {
+		_ = root
+
+		_, err := WriteFileTool{}.Execute(context.Background(), map[string]any{
+			"path":    "notes.txt",
+			"content": 123,
+		})
+		if !errors.Is(err, apperrors.ErrInvalidInput) {
+			t.Fatalf("error = %v, want ErrInvalidInput", err)
+		}
+	})
+}
+
+func TestEditFileToolRequiresBooleanApply(t *testing.T) {
+	withProjectRoot(t, func(root string) {
+		if err := os.WriteFile(filepath.Join(root, "notes.txt"), []byte("hello"), 0644); err != nil {
+			t.Fatalf("write test file: %v", err)
+		}
+
+		_, err := EditFileTool{}.Execute(context.Background(), map[string]any{
+			"path":  "notes.txt",
+			"old":   "hello",
+			"new":   "hi",
+			"apply": "true",
+		})
+		if !errors.Is(err, apperrors.ErrInvalidInput) {
+			t.Fatalf("error = %v, want ErrInvalidInput", err)
 		}
 	})
 }
@@ -118,8 +160,8 @@ func TestFileToolsRejectAbsolutePathOutsideProject(t *testing.T) {
 			"path":    outside,
 			"content": "nope",
 		})
-		if err == nil || !strings.Contains(err.Error(), "unsafe path") {
-			t.Fatalf("error = %v, want unsafe path error", err)
+		if !errors.Is(err, apperrors.ErrInvalidPath) || !strings.Contains(err.Error(), "unsafe path") {
+			t.Fatalf("error = %v, want ErrInvalidPath unsafe path error", err)
 		}
 	})
 }

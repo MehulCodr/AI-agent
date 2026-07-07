@@ -10,6 +10,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	apperrors "github.com/MehulCodr/AI-agent/internal/errors"
 )
 
 const defaultShellTimeout = 30 * time.Second
@@ -59,7 +61,7 @@ func (t ShellTool) Execute(ctx context.Context, input map[string]any) (string, e
 	err = cmd.Run()
 	result := output.String()
 	if errors.Is(runCtx.Err(), context.DeadlineExceeded) {
-		return result, fmt.Errorf("run_shell command timed out after %s", timeout)
+		return result, fmt.Errorf("%w: run_shell command timed out after %s", apperrors.ErrTimeout, timeout)
 	}
 	if errors.Is(runCtx.Err(), context.Canceled) {
 		return result, runCtx.Err()
@@ -85,13 +87,13 @@ func optionalStringSlice(input map[string]any, key, toolName string) ([]string, 
 		for _, item := range typed {
 			text, ok := item.(string)
 			if !ok {
-				return nil, fmt.Errorf("%s tool %s must contain only strings", toolName, key)
+				return nil, fmt.Errorf("%w: %s tool %s must contain only strings", apperrors.ErrInvalidInput, toolName, key)
 			}
 			args = append(args, text)
 		}
 		return args, nil
 	default:
-		return nil, fmt.Errorf("%s tool %s must be a string array", toolName, key)
+		return nil, fmt.Errorf("%w: %s tool %s must be a string array", apperrors.ErrInvalidInput, toolName, key)
 	}
 }
 
@@ -102,7 +104,7 @@ func validateShellCommand(command string, args []string) error {
 
 	name := normalizedCommandName(command)
 	if name == "" {
-		return fmt.Errorf("run_shell command cannot be empty")
+		return fmt.Errorf("%w: run_shell command cannot be empty", apperrors.ErrInvalidInput)
 	}
 
 	switch {
@@ -225,5 +227,5 @@ func hasArg(args []string, want string) bool {
 }
 
 func blockedShellCommandError(command string) error {
-	return fmt.Errorf("run_shell blocked dangerous command %q", command)
+	return fmt.Errorf("%w: run_shell blocked dangerous command %q", apperrors.ErrPermissionDenied, command)
 }

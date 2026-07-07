@@ -3,6 +3,8 @@ package tools
 import (
 	"context"
 	"fmt"
+
+	apperrors "github.com/MehulCodr/AI-agent/internal/errors"
 )
 
 type EchoTool struct{}
@@ -22,12 +24,12 @@ func (EchoTool) Execute(ctx context.Context, input map[string]any) (string, erro
 
 	value, ok := input["text"]
 	if !ok {
-		return "", fmt.Errorf("echo tool requires text")
+		return "", fmt.Errorf("%w: echo tool requires text", apperrors.ErrInvalidInput)
 	}
 
 	text, ok := value.(string)
 	if !ok {
-		return "", fmt.Errorf("echo tool text must be a string")
+		return "", fmt.Errorf("%w: echo tool text must be a string", apperrors.ErrInvalidInput)
 	}
 
 	return text, nil

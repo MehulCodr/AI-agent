@@ -2,12 +2,26 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+
+	apperrors "github.com/MehulCodr/AI-agent/internal/errors"
 )
+
+func TestRegistryRejectsInvalidTool(t *testing.T) {
+	registry := NewRegistry()
+
+	if err := registry.Register(nil); !errors.Is(err, apperrors.ErrInvalidInput) {
+		t.Fatalf("error = %v, want ErrInvalidInput", err)
+	}
+	if err := registry.Register(fakeTool{}); !errors.Is(err, apperrors.ErrInvalidInput) {
+		t.Fatalf("error = %v, want ErrInvalidInput", err)
+	}
+}
 
 func TestRegistryRegisterTool(t *testing.T) {
 	registry := NewRegistry()
@@ -47,8 +61,8 @@ func TestRegistryDuplicateRegistrationFails(t *testing.T) {
 	}
 
 	err := registry.Register(tool)
-	if err == nil || !strings.Contains(err.Error(), "already registered") {
-		t.Fatalf("error = %v, want duplicate registration error", err)
+	if !errors.Is(err, apperrors.ErrInvalidInput) || !strings.Contains(err.Error(), "already registered") {
+		t.Fatalf("error = %v, want duplicate registration ErrInvalidInput", err)
 	}
 }
 
@@ -56,8 +70,8 @@ func TestRegistryMissingToolReturnsError(t *testing.T) {
 	registry := NewRegistry()
 
 	_, err := registry.Get("missing_tool")
-	if err == nil || !strings.Contains(err.Error(), "missing_tool") {
-		t.Fatalf("error = %v, want missing tool error", err)
+	if !errors.Is(err, apperrors.ErrToolNotFound) || !strings.Contains(err.Error(), "missing_tool") {
+		t.Fatalf("error = %v, want ErrToolNotFound for missing tool", err)
 	}
 }
 
@@ -92,8 +106,8 @@ func TestEchoToolReturnsText(t *testing.T) {
 
 func TestEchoToolRequiresText(t *testing.T) {
 	_, err := EchoTool{}.Execute(context.Background(), nil)
-	if err == nil || !strings.Contains(err.Error(), "text") {
-		t.Fatalf("error = %v, want text error", err)
+	if !errors.Is(err, apperrors.ErrInvalidInput) || !strings.Contains(err.Error(), "text") {
+		t.Fatalf("error = %v, want ErrInvalidInput text error", err)
 	}
 }
 

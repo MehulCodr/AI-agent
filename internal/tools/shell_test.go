@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	apperrors "github.com/MehulCodr/AI-agent/internal/errors"
 )
 
 func TestShellToolRunsSafeCommand(t *testing.T) {
@@ -27,8 +29,8 @@ func TestShellToolBlocksDangerousCommand(t *testing.T) {
 		"command": "rm",
 		"args":    []string{"-rf", "/"},
 	})
-	if err == nil || !strings.Contains(err.Error(), "blocked") {
-		t.Fatalf("error = %v, want blocked command error", err)
+	if !errors.Is(err, apperrors.ErrPermissionDenied) || !strings.Contains(err.Error(), "blocked") {
+		t.Fatalf("error = %v, want ErrPermissionDenied blocked command error", err)
 	}
 }
 
@@ -37,8 +39,18 @@ func TestShellToolTimeout(t *testing.T) {
 		"command": os.Args[0],
 		"args":    []string{"-test.run=TestShellHelperProcess", "--", "sleep"},
 	})
-	if err == nil || !strings.Contains(err.Error(), "timed out") {
-		t.Fatalf("error = %v, want timeout error", err)
+	if !errors.Is(err, apperrors.ErrTimeout) || !strings.Contains(err.Error(), "timed out") {
+		t.Fatalf("error = %v, want ErrTimeout timeout error", err)
+	}
+}
+
+func TestShellToolRejectsInvalidArgs(t *testing.T) {
+	_, err := ShellTool{}.Execute(context.Background(), map[string]any{
+		"command": os.Args[0],
+		"args":    []any{"ok", 1},
+	})
+	if !errors.Is(err, apperrors.ErrInvalidInput) {
+		t.Fatalf("error = %v, want ErrInvalidInput", err)
 	}
 }
 

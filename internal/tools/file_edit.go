@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	apperrors "github.com/MehulCodr/AI-agent/internal/errors"
 )
 
 type EditFileTool struct{}
@@ -54,7 +56,7 @@ func (EditFileTool) Execute(ctx context.Context, input map[string]any) (string, 
 
 	content := string(data)
 	if !strings.Contains(content, oldText) {
-		return "", fmt.Errorf("edit file %q: old text not found", path)
+		return "", fmt.Errorf("%w: edit file %q: old text not found", apperrors.ErrInvalidInput, path)
 	}
 
 	diff := editDiff(path, oldText, newText)
@@ -81,7 +83,7 @@ func optionalBool(input map[string]any, key, toolName string) (bool, error) {
 
 	typed, ok := value.(bool)
 	if !ok {
-		return false, fmt.Errorf("%s tool %s must be a boolean", toolName, key)
+		return false, fmt.Errorf("%w: %s tool %s must be a boolean", apperrors.ErrInvalidInput, toolName, key)
 	}
 
 	return typed, nil

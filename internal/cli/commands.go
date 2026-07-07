@@ -11,6 +11,7 @@ import (
 
 	"github.com/MehulCodr/AI-agent/internal/agent"
 	projectcontext "github.com/MehulCodr/AI-agent/internal/context"
+	apperrors "github.com/MehulCodr/AI-agent/internal/errors"
 	"github.com/MehulCodr/AI-agent/internal/llm"
 )
 
@@ -44,7 +45,7 @@ func Run(args []string) error {
 		printUsage()
 		return nil
 	default:
-		return fmt.Errorf("unknown command %q\n\n%s", args[1], usageText())
+		return fmt.Errorf("%w: unknown command %q\n\n%s", apperrors.ErrInvalidInput, args[1], usageText())
 	}
 }
 
@@ -90,7 +91,7 @@ func runInit() error {
 func runTask(parts []string) error {
 	task := strings.TrimSpace(strings.Join(parts, " "))
 	if task == "" {
-		return errors.New(`missing task: usage: agent run "task"`)
+		return fmt.Errorf(`%w: missing task: usage: agent run "task"`, apperrors.ErrInvalidInput)
 	}
 
 	agent, err := newAgent()
@@ -141,7 +142,7 @@ func newAgent() (*agent.Agent, error) {
 }
 
 func usageError() error {
-	return fmt.Errorf("missing command\n\n%s", usageText())
+	return fmt.Errorf("%w: missing command\n\n%s", apperrors.ErrInvalidInput, usageText())
 }
 
 func printUsage() {

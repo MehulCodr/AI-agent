@@ -7,6 +7,7 @@ import (
 	"io"
 	"strings"
 
+	apperrors "github.com/MehulCodr/AI-agent/internal/errors"
 	"github.com/MehulCodr/AI-agent/internal/llm"
 )
 
@@ -20,10 +21,10 @@ type ChatRunner interface {
 // StartREPL runs the interactive chat loop.
 func StartREPL(ctx context.Context, input io.Reader, output io.Writer, runner ChatRunner) error {
 	if ctx == nil {
-		return fmt.Errorf("context is required")
+		return fmt.Errorf("%w: context is required", apperrors.ErrInvalidInput)
 	}
 	if runner == nil {
-		return fmt.Errorf("chat runner is required")
+		return fmt.Errorf("%w: chat runner is required", apperrors.ErrInvalidInput)
 	}
 
 	scanner := bufio.NewScanner(input)

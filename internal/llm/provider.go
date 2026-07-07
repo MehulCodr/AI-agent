@@ -19,6 +19,16 @@ type ToolCallFunction struct {
 	Arguments string `json:"arguments,omitempty"`
 }
 
+type ToolDefinition struct {
+	Name        string         `json:"name"`
+	Description string         `json:"description,omitempty"`
+	Parameters  map[string]any `json:"parameters,omitempty"`
+}
+
 type Provider interface {
 	Chat(ctx context.Context, messages []Message) (Message, error)
+}
+
+type ToolAwareProvider interface {
+	ChatWithTools(ctx context.Context, messages []Message, tools []ToolDefinition) (Message, error)
 }

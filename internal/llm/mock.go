@@ -16,6 +16,13 @@ func (p MockProvider) Chat(ctx context.Context, messages []Message) (Message, er
 
 	content := p.Response
 	if content == "" {
+		if last := lastUserMessage(messages); strings.HasPrefix(last, "Tool results:") {
+			return Message{Role: "assistant", Content: "mock response:\n" + last}, nil
+		}
+		if call, ok := mockToolCall(messages); ok {
+			return Message{Role: "assistant", ToolCalls: []ToolCall{call}}, nil
+		}
+
 		content = "mock response"
 		if last := lastUserMessage(messages); last != "" {
 			content += ": " + last
@@ -33,4 +40,19 @@ func lastUserMessage(messages []Message) string {
 	}
 
 	return ""
+}
+
+func mockToolCall(messages []Message) (ToolCall, bool) {
+	last := strings.ToLower(lastUserMessage(messages))
+	if strings.Contains(last, "list") && (strings.Contains(last, "file") || strings.Contains(last, "director")) {
+		return ToolCall{
+			Type: "function",
+			Function: ToolCallFunction{
+				Name:      "list_files",
+				Arguments: `{"path":"."}`,
+			},
+		}, true
+	}
+
+	return ToolCall{}, false
 }

@@ -44,6 +44,14 @@ func NewGeminiProvider(config GeminiConfig) *GeminiProvider {
 }
 
 func (p *GeminiProvider) Chat(ctx context.Context, messages []Message) (Message, error) {
+	return p.chat(ctx, messages, nil)
+}
+
+func (p *GeminiProvider) ChatWithTools(ctx context.Context, messages []Message, tools []ToolDefinition) (Message, error) {
+	return p.chat(ctx, messages, tools)
+}
+
+func (p *GeminiProvider) chat(ctx context.Context, messages []Message, tools []ToolDefinition) (Message, error) {
 	if p.config.APIKey == "" {
 		return Message{}, fmt.Errorf("gemini api key is required")
 	}
@@ -53,6 +61,7 @@ func (p *GeminiProvider) Chat(ctx context.Context, messages []Message) (Message,
 
 	payload, err := json.Marshal(geminiRequest{
 		Contents: geminiContents(messages),
+		Tools:    geminiTools(tools),
 	})
 	if err != nil {
 		return Message{}, err
@@ -93,6 +102,17 @@ func (p *GeminiProvider) Chat(ctx context.Context, messages []Message) (Message,
 
 type geminiRequest struct {
 	Contents []geminiContent `json:"contents"`
+	Tools    []geminiTool    `json:"tools,omitempty"`
+}
+
+type geminiTool struct {
+	FunctionDeclarations []geminiFunctionDeclaration `json:"functionDeclarations,omitempty"`
+}
+
+type geminiFunctionDeclaration struct {
+	Name        string         `json:"name,omitempty"`
+	Description string         `json:"description,omitempty"`
+	Parameters  map[string]any `json:"parameters,omitempty"`
 }
 
 type geminiContent struct {
@@ -129,6 +149,29 @@ func geminiContents(messages []Message) []geminiContent {
 		contents = append(contents, content)
 	}
 	return contents
+}
+
+func geminiTools(tools []ToolDefinition) []geminiTool {
+	if len(tools) == 0 {
+		return nil
+	}
+
+	declarations := make([]geminiFunctionDeclaration, 0, len(tools))
+	for _, tool := range tools {
+		if strings.TrimSpace(tool.Name) == "" {
+			continue
+		}
+		declarations = append(declarations, geminiFunctionDeclaration{
+			Name:        tool.Name,
+			Description: tool.Description,
+			Parameters:  tool.Parameters,
+		})
+	}
+	if len(declarations) == 0 {
+		return nil
+	}
+
+	return []geminiTool{{FunctionDeclarations: declarations}}
 }
 
 func geminiRole(role string) string {

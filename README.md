@@ -98,10 +98,16 @@ go run ./cmd init
 The sample `.agent/config.example.json` mirrors the project metadata created by
 `init`; provider selection is controlled by `.env`.
 
-Run a one-off task with the mock provider:
+Run a one-off task:
 
 ```sh
 go run ./cmd run "summarize this repo"
+```
+
+Ask the agent to inspect the current directory:
+
+```sh
+go run ./cmd run "list current files in this directory"
 ```
 
 Inspect repository context:
@@ -121,10 +127,10 @@ go run ./cmd chat
 - The mock provider is the safest default for demos and tests.
 - Keep real API keys in `.env`; do not commit `.env`.
 - `init` leaves an existing `.agent/config.json` unchanged.
-- Shell and file tools are registered for the agent foundation, but model tool
-  calling is not enabled yet.
-- Review any future edit or shell-execution features before enabling them with a
-  real provider.
+- The agent passes project context to the provider and can execute registered
+  tool calls for listing, reading, editing, writing, and safe shell commands.
+- File tools are constrained to the project root.
+- Review edit and shell requests carefully when using a real provider.
 
 ## Development Workflow
 

@@ -77,6 +77,41 @@ func TestGeminiProviderChatParsesToolCalls(t *testing.T) {
 	}
 }
 
+func TestGeminiProviderChatWithToolsSendsDeclarations(t *testing.T) {
+	client := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		var req geminiRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		if len(req.Tools) != 1 || len(req.Tools[0].FunctionDeclarations) != 1 {
+			t.Fatalf("tools = %#v, want one declaration", req.Tools)
+		}
+		if req.Tools[0].FunctionDeclarations[0].Name != "read_file" {
+			t.Fatalf("tool name = %q, want read_file", req.Tools[0].FunctionDeclarations[0].Name)
+		}
+
+		return jsonResponse(http.StatusOK, `{"candidates":[{"content":{"parts":[{"text":"ok"}]}}]}`), nil
+	})}
+
+	provider := NewGeminiProvider(GeminiConfig{
+		APIKey:     "test-key",
+		BaseURL:    "https://example.test/v1beta",
+		Model:      "test-model",
+		HTTPClient: client,
+	})
+
+	_, err := provider.ChatWithTools(context.Background(), []Message{{Role: "user", Content: "hello"}}, []ToolDefinition{
+		{
+			Name:        "read_file",
+			Description: "Reads a file.",
+			Parameters:  map[string]any{"type": "object"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("ChatWithTools returned error: %v", err)
+	}
+}
+
 func TestGeminiProviderRequiresAPIKey(t *testing.T) {
 	provider := NewGeminiProvider(GeminiConfig{Model: "test-model"})
 

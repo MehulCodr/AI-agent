@@ -123,6 +123,19 @@ func TestCurrentDirectoryToolReturnsPath(t *testing.T) {
 
 func TestListFilesToolListsTemporaryDirectory(t *testing.T) {
 	dir := t.TempDir()
+	previous, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("change working directory: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(previous); err != nil {
+			t.Fatalf("restore working directory: %v", err)
+		}
+	})
+
 	if err := os.WriteFile(filepath.Join(dir, "one.txt"), []byte("one"), 0644); err != nil {
 		t.Fatalf("write test file: %v", err)
 	}
@@ -130,7 +143,7 @@ func TestListFilesToolListsTemporaryDirectory(t *testing.T) {
 		t.Fatalf("create test directory: %v", err)
 	}
 
-	got, err := ListFilesTool{}.Execute(context.Background(), map[string]any{"path": dir})
+	got, err := ListFilesTool{}.Execute(context.Background(), map[string]any{"path": "."})
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)
 	}

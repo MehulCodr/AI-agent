@@ -35,7 +35,15 @@ func (ListFilesTool) Execute(ctx context.Context, input map[string]any) (string,
 		}
 	}
 
-	entries, err := os.ReadDir(path)
+	safePath, err := safeProjectPath(path)
+	if err != nil {
+		return "", err
+	}
+	if err := ensureExistingTargetInsideProject(safePath); err != nil {
+		return "", err
+	}
+
+	entries, err := os.ReadDir(safePath)
 	if err != nil {
 		return "", fmt.Errorf("list files in %q: %w", path, err)
 	}

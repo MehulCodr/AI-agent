@@ -9,7 +9,7 @@ demo flows without requiring a real API key.
 
 The repository is organized around a few focused packages:
 
-- `cmd/agent` starts the CLI.
+- `cmd` starts the CLI.
 - `internal/cli` parses commands, loads `.env`, and runs the REPL.
 - `internal/agent` manages conversation memory and sessions.
 - `internal/llm` provides mock and Gemini provider implementations.
@@ -29,13 +29,13 @@ Prerequisites:
 Run the CLI directly during development:
 
 ```sh
-go run ./cmd/agent version
+go run ./cmd version
 ```
 
 Or build a local binary:
 
 ```sh
-go build -o agent ./cmd/agent
+go build -o agent ./cmd
 ./agent version
 ```
 

@@ -92,7 +92,7 @@ Inside `chat`, use `/history`, `/clear`, and `/exit`.
 Initialize project-local agent metadata:
 
 ```sh
-go run ./cmd/agent init
+go run ./cmd init
 ```
 
 The sample `.agent/config.example.json` mirrors the project metadata created by
@@ -101,19 +101,19 @@ The sample `.agent/config.example.json` mirrors the project metadata created by
 Run a one-off task with the mock provider:
 
 ```sh
-go run ./cmd/agent run "summarize this repo"
+go run ./cmd run "summarize this repo"
 ```
 
 Inspect repository context:
 
 ```sh
-go run ./cmd/agent context
+go run ./cmd context
 ```
 
 Start an interactive chat session:
 
 ```sh
-go run ./cmd/agent chat
+go run ./cmd chat
 ```
 
 ## Safety Notes
@@ -148,10 +148,10 @@ go test ./...
 Run this from the repository root:
 
 ```sh
-go run ./cmd/agent version
-go run ./cmd/agent init
-go run ./cmd/agent run "summarize this repo"
-go run ./cmd/agent chat
+go run ./cmd version
+go run ./cmd init
+go run ./cmd run "summarize this repo"
+go run ./cmd chat
 go test ./...
 ```
 

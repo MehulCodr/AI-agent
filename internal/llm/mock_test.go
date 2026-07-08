@@ -9,7 +9,7 @@ import (
 func TestMockProviderReturnsConfiguredResponse(t *testing.T) {
 	provider := MockProvider{Response: "configured"}
 
-	got, err := provider.Chat(context.Background(), []Message{{Role: "user", Content: "hello"}})
+	got, err := provider.Chat(context.Background(), ChatRequest{Messages: []Message{{Role: "user", Content: "hello"}}})
 	if err != nil {
 		t.Fatalf("Chat returned error: %v", err)
 	}
@@ -21,11 +21,11 @@ func TestMockProviderReturnsConfiguredResponse(t *testing.T) {
 func TestMockProviderEchoesLastUserMessage(t *testing.T) {
 	provider := MockProvider{}
 
-	got, err := provider.Chat(context.Background(), []Message{
+	got, err := provider.Chat(context.Background(), ChatRequest{Messages: []Message{
 		{Role: "user", Content: "first"},
 		{Role: "assistant", Content: "ok"},
 		{Role: "user", Content: "second"},
-	})
+	}})
 	if err != nil {
 		t.Fatalf("Chat returned error: %v", err)
 	}
@@ -38,7 +38,7 @@ func TestMockProviderRespectsCancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := MockProvider{}.Chat(ctx, nil)
+	_, err := MockProvider{}.Chat(ctx, ChatRequest{})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("error = %v, want context.Canceled", err)
 	}

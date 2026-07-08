@@ -15,6 +15,10 @@ func (CurrentDirectoryTool) Description() string {
 	return "Returns the current working directory."
 }
 
+func (CurrentDirectoryTool) Parameters() map[string]any {
+	return objectSchema(nil, map[string]any{})
+}
+
 func (CurrentDirectoryTool) Execute(ctx context.Context, input map[string]any) (string, error) {
 	_ = input
 

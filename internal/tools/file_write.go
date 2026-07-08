@@ -16,6 +16,13 @@ func (WriteFileTool) Description() string {
 	return "Writes content to a file inside the project root."
 }
 
+func (WriteFileTool) Parameters() map[string]any {
+	return objectSchema([]string{"path", "content"}, map[string]any{
+		"path":    stringProperty("Relative path to write."),
+		"content": stringProperty("Complete file contents to write."),
+	})
+}
+
 func (WriteFileTool) Execute(ctx context.Context, input map[string]any) (string, error) {
 	if err := contextError(ctx); err != nil {
 		return "", err

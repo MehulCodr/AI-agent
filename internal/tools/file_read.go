@@ -18,6 +18,12 @@ func (ReadFileTool) Description() string {
 	return "Reads a file inside the project root."
 }
 
+func (ReadFileTool) Parameters() map[string]any {
+	return objectSchema([]string{"path"}, map[string]any{
+		"path": stringProperty("Relative path to the file to read."),
+	})
+}
+
 func (ReadFileTool) Execute(ctx context.Context, input map[string]any) (string, error) {
 	if err := contextError(ctx); err != nil {
 		return "", err

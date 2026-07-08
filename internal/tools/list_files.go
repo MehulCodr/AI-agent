@@ -14,7 +14,13 @@ func (ListFilesTool) Name() string {
 }
 
 func (ListFilesTool) Description() string {
-	return "Lists files in a directory."
+	return "Lists files in a directory inside the project root."
+}
+
+func (ListFilesTool) Parameters() map[string]any {
+	return objectSchema(nil, map[string]any{
+		"path": stringProperty("Relative directory path to list. Defaults to the project root."),
+	})
 }
 
 func (ListFilesTool) Execute(ctx context.Context, input map[string]any) (string, error) {
@@ -33,7 +39,15 @@ func (ListFilesTool) Execute(ctx context.Context, input map[string]any) (string,
 		}
 	}
 
-	entries, err := os.ReadDir(path)
+	safePath, err := safeProjectPath(path)
+	if err != nil {
+		return "", err
+	}
+	if err := ensureExistingTargetInsideProject(safePath); err != nil {
+		return "", err
+	}
+
+	entries, err := os.ReadDir(safePath)
 	if err != nil {
 		return "", fmt.Errorf("list files in %q: %w", path, err)
 	}

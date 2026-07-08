@@ -17,6 +17,14 @@ func (EditFileTool) Description() string {
 	return "Replaces the first matching text in a file inside the project root."
 }
 
+func (EditFileTool) Parameters() map[string]any {
+	return objectSchema([]string{"path", "old", "new"}, map[string]any{
+		"path": stringProperty("Relative path to edit."),
+		"old":  stringProperty("Exact text to replace."),
+		"new":  stringProperty("Replacement text."),
+	})
+}
+
 func (EditFileTool) Execute(ctx context.Context, input map[string]any) (string, error) {
 	if err := contextError(ctx); err != nil {
 		return "", err

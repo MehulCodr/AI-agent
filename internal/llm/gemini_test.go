@@ -41,7 +41,7 @@ func TestGeminiProviderChat(t *testing.T) {
 	})
 	provider.client = client
 
-	got, err := provider.Chat(context.Background(), []Message{{Role: "user", Content: "hello"}})
+	got, err := provider.Chat(context.Background(), ChatRequest{Messages: []Message{{Role: "user", Content: "hello"}}})
 	if err != nil {
 		t.Fatalf("Chat returned error: %v", err)
 	}
@@ -53,7 +53,7 @@ func TestGeminiProviderChat(t *testing.T) {
 func TestGeminiProviderChatRequiresAPIKey(t *testing.T) {
 	provider := NewGeminiProvider(GeminiConfig{Model: "test-model"})
 
-	_, err := provider.Chat(context.Background(), []Message{{Role: "user", Content: "hello"}})
+	_, err := provider.Chat(context.Background(), ChatRequest{Messages: []Message{{Role: "user", Content: "hello"}}})
 	if err == nil || !strings.Contains(err.Error(), "api key") {
 		t.Fatalf("error = %v, want api key error", err)
 	}
@@ -62,7 +62,7 @@ func TestGeminiProviderChatRequiresAPIKey(t *testing.T) {
 func TestGeminiProviderChatRequiresModel(t *testing.T) {
 	provider := NewGeminiProvider(GeminiConfig{APIKey: "test-key"})
 
-	_, err := provider.Chat(context.Background(), []Message{{Role: "user", Content: "hello"}})
+	_, err := provider.Chat(context.Background(), ChatRequest{Messages: []Message{{Role: "user", Content: "hello"}}})
 	if err == nil || !strings.Contains(err.Error(), "model") {
 		t.Fatalf("error = %v, want model error", err)
 	}
@@ -78,7 +78,7 @@ func TestGeminiProviderChatReturnsAPIError(t *testing.T) {
 		return jsonResponse(http.StatusBadRequest, "bad request"), nil
 	})}
 
-	_, err := provider.Chat(context.Background(), []Message{{Role: "user", Content: "hello"}})
+	_, err := provider.Chat(context.Background(), ChatRequest{Messages: []Message{{Role: "user", Content: "hello"}}})
 	if err == nil || !strings.Contains(err.Error(), "400 Bad Request") {
 		t.Fatalf("error = %v, want status error", err)
 	}
@@ -94,14 +94,14 @@ func TestGeminiProviderChatRequiresCandidate(t *testing.T) {
 		return jsonResponse(http.StatusOK, `{"candidates":[]}`), nil
 	})}
 
-	_, err := provider.Chat(context.Background(), []Message{{Role: "user", Content: "hello"}})
+	_, err := provider.Chat(context.Background(), ChatRequest{Messages: []Message{{Role: "user", Content: "hello"}}})
 	if err == nil || !strings.Contains(err.Error(), "no candidates") {
 		t.Fatalf("error = %v, want no candidates error", err)
 	}
 }
 
 func TestGeminiContentsMapsAssistantToModel(t *testing.T) {
-	got := geminiContents([]Message{
+	_, got := geminiContents([]Message{
 		{Role: "user", Content: "hello"},
 		{Role: "assistant", Content: "hi"},
 	})

@@ -108,24 +108,25 @@ func TestCurrentDirectoryToolReturnsPath(t *testing.T) {
 }
 
 func TestListFilesToolListsTemporaryDirectory(t *testing.T) {
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "one.txt"), []byte("one"), 0644); err != nil {
-		t.Fatalf("write test file: %v", err)
-	}
-	if err := os.Mkdir(filepath.Join(dir, "folder"), 0755); err != nil {
-		t.Fatalf("create test directory: %v", err)
-	}
+	withProjectRoot(t, func(root string) {
+		if err := os.WriteFile(filepath.Join(root, "one.txt"), []byte("one"), 0644); err != nil {
+			t.Fatalf("write test file: %v", err)
+		}
+		if err := os.Mkdir(filepath.Join(root, "folder"), 0755); err != nil {
+			t.Fatalf("create test directory: %v", err)
+		}
 
-	got, err := ListFilesTool{}.Execute(context.Background(), map[string]any{"path": dir})
-	if err != nil {
-		t.Fatalf("Execute returned error: %v", err)
-	}
+		got, err := ListFilesTool{}.Execute(context.Background(), map[string]any{"path": "."})
+		if err != nil {
+			t.Fatalf("Execute returned error: %v", err)
+		}
 
-	lines := strings.Split(got, "\n")
-	want := []string{"folder", "one.txt"}
-	if !reflect.DeepEqual(lines, want) {
-		t.Fatalf("files = %#v, want %#v", lines, want)
-	}
+		lines := strings.Split(got, "\n")
+		want := []string{"folder", "one.txt"}
+		if !reflect.DeepEqual(lines, want) {
+			t.Fatalf("files = %#v, want %#v", lines, want)
+		}
+	})
 }
 
 type fakeTool struct {
@@ -138,6 +139,10 @@ func (f fakeTool) Name() string {
 
 func (f fakeTool) Description() string {
 	return "fake tool"
+}
+
+func (f fakeTool) Parameters() map[string]any {
+	return objectSchema(nil, map[string]any{})
 }
 
 func (f fakeTool) Execute(ctx context.Context, input map[string]any) (string, error) {

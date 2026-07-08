@@ -15,6 +15,12 @@ func (EchoTool) Description() string {
 	return "Returns the provided text."
 }
 
+func (EchoTool) Parameters() map[string]any {
+	return objectSchema([]string{"text"}, map[string]any{
+		"text": stringProperty("Text to return."),
+	})
+}
+
 func (EchoTool) Execute(ctx context.Context, input map[string]any) (string, error) {
 	if err := contextError(ctx); err != nil {
 		return "", err
